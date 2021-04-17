@@ -39,7 +39,7 @@ class Block {
         let self = this;
         return new Promise((resolve, reject) => {
             // Save in auxiliary variable the current block hash
-            const currentHash = self.hash;
+            const currentHash = this.hash;
             // Recalculate the hash of the Block
             const reCalc = SHA256(JSON.stringify(self));
             // Comparing if the hashes changed
@@ -48,7 +48,7 @@ class Block {
                 resolve(true);
             }
             // Returning the Block is not valid
-            else { resolve(false); }
+            else { reject(new Error('Block Tampered!!')); }
 
         });
     }
@@ -63,14 +63,21 @@ class Block {
      *     or Reject with an error.
      */
     getBData() {
-        const encodedData = this.body;
-        // Getting the encoded data saved in the Block
-        const asciiData = hex2ascii(encodedData);
-        // Decoding the data to retrieve the JSON representation of the object
-        // Parse the data to an object to be retrieve.
-        const dataObject = JSON.parse(asciiData);
-        // Resolve with the data if the object isn't the Genesis block
-        return this.height === 0 ? 'Genesis Block' : dataObject;
+        return new Promise((resolve, reject) => {
+            const encodedData = this.body;
+            // Getting the encoded data saved in the Block
+            const asciiData = hex2ascii(encodedData);
+            // Decoding the data to retrieve the JSON representation of the object
+            // Parse the data to an object to be retrieve.
+            const dataObject = JSON.parse(asciiData);
+            // Resolve with the data if the object isn't the Genesis block
+            if (this.height === 0) {
+                reject(new Error('Genesis Block'));
+            }
+            else {
+                resolve(dataObject);
+            }
+        });
     }
 
 }
