@@ -66,7 +66,7 @@ class Blockchain {
         return new Promise(async (resolve, reject) => {
             try {
                 block.height = this.chain.length;
-                block.previousBlockHash = this.chain[this.getChainHeight()].hash;
+                block.previousBlockHash = self.getChainHeight() > 1 ? self.chain[self.getChainHeight()].hash : null;
                 block.time = new Date().getTime().toString().slice(0, -3);
                 block.hash = SHA256(JSON.stringify(block)).toString();
                 this.chain.push(block);
@@ -81,7 +81,7 @@ class Blockchain {
 
     /**
      * The requestMessageOwnershipVerification(address) method
-     * will allow you  to request a message that you will use to
+     * will allow you to request a message that you will use to
      * sign it with your Bitcoin Wallet (Electrum or Bitcoin Core)
      * This is the first step before submit your Block.
      * The method return a Promise that will resolve with the message to be signed
@@ -89,7 +89,7 @@ class Blockchain {
      */
     requestMessageOwnershipVerification(address) {
         return new Promise((resolve) => {
-
+            resolve(`${address}:${new Date().getTime().toString().slice(0, -3)}:starRegistry`)
         });
     }
 
@@ -102,7 +102,7 @@ class Blockchain {
      * 1. Get the time from the message sent as a parameter example: `parseInt(message.split(':')[1])`
      * 2. Get the current time: `let currentTime = parseInt(new Date().getTime().toString().slice(0, -3));`
      * 3. Check if the time elapsed is less than 5 minutes
-     * 4. Veify the message with wallet address and signature: `bitcoinMessage.verify(message, address, signature)`
+     * 4. Verify the message with wallet address and signature: `bitcoinMessage.verify(message, address, signature)`
      * 5. Create the block and add it to the chain
      * 6. Resolve with the block added.
      * @param {*} address 
@@ -113,7 +113,17 @@ class Blockchain {
     submitStar(address, message, signature, star) {
         let self = this;
         return new Promise(async (resolve, reject) => {
-
+            const messageTime = parseInt(message.split(':')[1]);
+            let currentTime = parseInt(new Date().getTime().toString().slice(0, -3));
+            if (Math.abs(messageTime - currentTime) < 300) {
+                bitcoinMessage.verify(message, address, signature);
+                let block = new BlockClass.Block({ owner: address, star: star });
+                self._addBlock(block);
+                resolve(block);
+            }
+            else {
+                reject('Error: Too much time elapsed');
+            }
         });
     }
 
@@ -126,7 +136,8 @@ class Blockchain {
     getBlockByHash(hash) {
         let self = this;
         return new Promise((resolve, reject) => {
-
+            let block = self.chain.find((block) => block.hash === hash);
+            block ? resolve(block) : reject("No block with that hash found");
         });
     }
 
@@ -138,7 +149,7 @@ class Blockchain {
     getBlockByHeight(height) {
         let self = this;
         return new Promise((resolve, reject) => {
-            let block = self.chain.filter(p => p.height === height)[0];
+            let block = self.chain.find(p => p.height === height);
             if (block) {
                 resolve(block);
             } else {
@@ -157,7 +168,10 @@ class Blockchain {
         let self = this;
         let stars = [];
         return new Promise((resolve, reject) => {
-
+            stars = self.chain.filter((block) => block.getBData()
+                .then((data) => data.user === address));
+            if (stars.length) { resolve(stars); }
+            else { resolve(null); }
         });
     }
 
@@ -171,7 +185,10 @@ class Blockchain {
         let self = this;
         let errorLog = [];
         return new Promise(async (resolve, reject) => {
-
+            self.chain.forEach((block, index) => block.validate()
+                .then(data => data.hash === self.chain[index - 1] ? errorLog.push(`prevHash issue block${self.chain[index - 1].height}`) : null))
+                .catch(error => errorLog.push(error));
+            errorLog.length ? resolve(errorLog) : resolve(null);
         });
     }
 

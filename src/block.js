@@ -39,16 +39,16 @@ class Block {
         let self = this;
         return new Promise((resolve, reject) => {
             // Save in auxiliary variable the current block hash
-            const currentHash = this.hash;
+            const currentHash = self.hash;
             // Recalculate the hash of the Block
             const reCalc = SHA256(JSON.stringify(self));
             // Comparing if the hashes changed
             if (currentHash === reCalc) {
                 // Returning the Block is valid
-                resolve(true);
+                resolve(self);
             }
             // Returning the Block is not valid
-            else { reject(new Error('Block Tampered!!')); }
+            else { reject(new Error(`Block ${self.height} Tampered!!`)); }
 
         });
     }
