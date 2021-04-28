@@ -69,9 +69,12 @@ class Blockchain {
                 block.previousBlockHash = this.chain.length > 0 ? this.chain[this.chain.length - 1].hash : null;
                 block.time = new Date().getTime().toString().slice(0, -3);
                 block.hash = SHA256(JSON.stringify(block)).toString();
-                this.chain.push(block);
-                ++this.height;
-                resolve(block);
+                let validationErrors = await this.validateChain();
+                if (validationErrors === null) {
+                    this.chain.push(block);
+                    ++this.height;
+                    resolve(block);
+                }
             }
             catch (err) {
                 reject(new Error(err));
@@ -167,8 +170,12 @@ class Blockchain {
         let self = this;
         let stars = [];
         return new Promise(async (resolve, reject) => {
-            await self.chain.forEach((block) => block.getBData()
-                .then((data) => data.owner === address ? stars.push(data) : null))
+            await self.chain.forEach((block) => {
+                if (block.height > 0) {
+                    const data = block.getBData();
+                    if (data.owner === address) { stars.push(block.getBData()); }
+                }
+            });
 
             if (stars.length) { resolve(stars); }
             else { resolve(null); }
@@ -185,9 +192,9 @@ class Blockchain {
         let self = this;
         let errorLog = [];
         return new Promise(async (resolve, reject) => {
-            self.chain.forEach((block, index) => block.validate()
-                .then(data => data.hash === self.chain[index - 1] ? errorLog.push(`prevHash issue block${self.chain[index - 1].height}`) : null))
-                .catch(error => errorLog.push(error));
+            await self.chain.forEach((block, index) => block.validate()
+                .then(data => data.hash === self.chain[index - 1] ? errorLog.push(`prevHash issue block${self.chain[index - 1].height}`) : null)
+                .catch(error => errorLog.push(error)));
             errorLog.length ? resolve(errorLog) : resolve(null);
         });
     }
