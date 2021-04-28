@@ -66,7 +66,7 @@ class Blockchain {
         return new Promise(async (resolve, reject) => {
             try {
                 block.height = this.chain.length;
-                block.previousBlockHash = self.getChainHeight() > 1 ? self.chain[self.getChainHeight()].hash : null;
+                block.previousBlockHash = this.chain.length > 0 ? this.chain[this.chain.length - 1].hash : null;
                 block.time = new Date().getTime().toString().slice(0, -3);
                 block.hash = SHA256(JSON.stringify(block)).toString();
                 this.chain.push(block);
@@ -116,10 +116,9 @@ class Blockchain {
             const messageTime = parseInt(message.split(':')[1]);
             let currentTime = parseInt(new Date().getTime().toString().slice(0, -3));
             if (Math.abs(messageTime - currentTime) < 300) {
-                bitcoinMessage.verify(message, address, signature);
                 let block = new BlockClass.Block({ owner: address, star: star });
-                self._addBlock(block);
-                resolve(block);
+                bitcoinMessage.verify(message, address, signature) ?
+                    (self._addBlock(block), resolve(block)) : reject('Error: message not verified')
             }
             else {
                 reject('Error: Too much time elapsed');
@@ -137,7 +136,7 @@ class Blockchain {
         let self = this;
         return new Promise((resolve, reject) => {
             let block = self.chain.find((block) => block.hash === hash);
-            block ? resolve(block) : reject("No block with that hash found");
+            block ? resolve(block) : resolve(null);
         });
     }
 
@@ -167,9 +166,10 @@ class Blockchain {
     getStarsByWalletAddress(address) {
         let self = this;
         let stars = [];
-        return new Promise((resolve, reject) => {
-            stars = self.chain.filter((block) => block.getBData()
-                .then((data) => data.user === address));
+        return new Promise(async (resolve, reject) => {
+            await self.chain.forEach((block) => block.getBData()
+                .then((data) => data.owner === address ? stars.push(data) : null))
+
             if (stars.length) { resolve(stars); }
             else { resolve(null); }
         });

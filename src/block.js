@@ -71,10 +71,7 @@ class Block {
             // Parse the data to an object to be retrieve.
             const dataObject = JSON.parse(asciiData);
             // Resolve with the data if the object isn't the Genesis block
-            if (this.height === 0) {
-                reject(new Error('Genesis Block'));
-            }
-            else {
+            if (this.height > 0) {
                 resolve(dataObject);
             }
         });
